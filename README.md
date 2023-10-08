@@ -1,3 +1,4 @@
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 # Tuya Scaling Remove
 Just a simple modification for the tuya integration with removed scaling on the output.
 This fixes the 10x value on the voltage and power readings.
