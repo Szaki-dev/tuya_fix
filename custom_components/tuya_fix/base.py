@@ -43,15 +43,19 @@ class IntegerTypeData:
     @property
     def step_scaled(self) -> float:
         """Return the step scaled."""
-        return self.step / (10**1)
+        return self.step / (10**self.scale)
 
     def scale_value(self, value: float) -> float:
         """Scale a value."""
-        return value / (10**1)
+        if self.dpcode in (DPCode.CUR_CURRENT, DPCode.CUR_POWER, DPCode.CUR_VOLTAGE):
+            return value / (10**1)
+        return value / (10**self.scale)
 
     def scale_value_back(self, value: float) -> int:
         """Return raw value for scaled."""
-        return int(value * (10**1))
+        if self.dpcode in (DPCode.CUR_CURRENT, DPCode.CUR_POWER, DPCode.CUR_VOLTAGE):
+            return int(value * (10**1))
+        return int(value * (10**self.scale))
 
     def remap_value_to(
         self,
