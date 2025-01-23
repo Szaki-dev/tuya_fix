@@ -13,9 +13,25 @@ from tuya_sharing import CustomerDevice, Manager
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
+from homeassistant.const import (
+    UnitOfElectricCurrent,
+    UnitOfElectricPotential,
+    UnitOfPower,
+)
 
 from .const import DOMAIN, LOGGER, TUYA_HA_SIGNAL_UPDATE_ENTITY, DPCode, DPType
 from .util import remap_value
+
+_DPTYPE_MAPPING: dict[str, DPType] = {
+    "Bitmap": DPType.RAW,
+    "bitmap": DPType.RAW,
+    "bool": DPType.BOOLEAN,
+    "enum": DPType.ENUM,
+    "json": DPType.JSON,
+    "raw": DPType.RAW,
+    "string": DPType.STRING,
+    "value": DPType.INTEGER,
+}
 
 
 @dataclass
@@ -43,17 +59,18 @@ class IntegerTypeData:
     @property
     def step_scaled(self) -> float:
         """Return the step scaled."""
+
         return self.step / (10**self.scale)
 
     def scale_value(self, value: float) -> float:
         """Scale a value."""
-        if self.dpcode in (DPCode.CUR_CURRENT, DPCode.CUR_POWER, DPCode.CUR_VOLTAGE):
+        if self.dpcode in (DPCode.CUR_CURRENT, DPCode.CUR_POWER, DPCode.CUR_VOLTAGE) and self.unit in (UnitOfElectricCurrent.AMPERE, UnitOfPower.WATT, UnitOfElectricPotential.VOLT):
             return value / (10**1)
         return value / (10**self.scale)
 
     def scale_value_back(self, value: float) -> int:
         """Return raw value for scaled."""
-        if self.dpcode in (DPCode.CUR_CURRENT, DPCode.CUR_POWER, DPCode.CUR_VOLTAGE):
+        if self.dpcode in (DPCode.CUR_CURRENT, DPCode.CUR_POWER, DPCode.CUR_VOLTAGE) and self.unit in (UnitOfElectricCurrent.AMPERE, UnitOfPower.WATT, UnitOfElectricPotential.VOLT):
             return int(value * (10**1))
         return int(value * (10**self.scale))
 
@@ -155,7 +172,8 @@ class TuyaEntity(Entity):
             identifiers={(DOMAIN, self.device.id)},
             manufacturer="Tuya",
             name=self.device.name,
-            model=f"{self.device.product_name} ({self.device.product_id})",
+            model=self.device.product_name,
+            model_id=self.device.product_id,
         )
 
     @property
@@ -259,7 +277,13 @@ class TuyaEntity(Entity):
             order = ["function", "status_range"]
         for key in order:
             if dpcode in getattr(self.device, key):
-                return DPType(getattr(self.device, key)[dpcode].type)
+                current_type = getattr(self.device, key)[dpcode].type
+                try:
+                    return DPType(current_type)
+                except ValueError:
+                    # Sometimes, we get ill-formed DPTypes from the cloud,
+                    # this fixes them and maps them to the correct DPType.
+                    return _DPTYPE_MAPPING.get(current_type)
 
         return None
 
@@ -269,9 +293,14 @@ class TuyaEntity(Entity):
             async_dispatcher_connect(
                 self.hass,
                 f"{TUYA_HA_SIGNAL_UPDATE_ENTITY}_{self.device.id}",
-                self.async_write_ha_state,
+                self._handle_state_update,
             )
         )
+
+    async def _handle_state_update(
+        self, updated_status_properties: list[str] | None
+    ) -> None:
+        self.async_write_ha_state()
 
     def _send_command(self, commands: list[dict[str, Any]]) -> None:
         """Send command to the device."""

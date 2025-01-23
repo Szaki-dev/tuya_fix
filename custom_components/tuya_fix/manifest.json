@@ -1,7 +1,7 @@
 {
   "domain": "tuya",
   "name": "Tuya Fixed V2",
-  "codeowners": ["@Szaki-Dev","@Tuya", "@zlinoliver", "@frenck"],
+  "codeowners": ["@Szaki-Dev","@Tuya", "@zlinoliver"],
   "config_flow": true,
   "dependencies": ["ffmpeg"],
   "dhcp": [
@@ -43,6 +43,6 @@
   "integration_type": "hub",
   "iot_class": "cloud_push",
   "loggers": ["tuya_iot"],
-  "requirements": ["tuya-device-sharing-sdk==0.1.9"],
+  "requirements": ["tuya-device-sharing-sdk==0.2.1"],
   "version": "2.0"
 }
